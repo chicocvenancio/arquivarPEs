@@ -1,63 +1,56 @@
-// Author: Francisco Venancio ([[Usuário:Chicocvenancio]])pro
-/* jshint laxbreak: true */
+// Author: Francisco Venancio ([[Usuário:Chicocvenancio]])
+/* jshint laxbreak: true, esversion: 8 */
 /* global jQuery, mediaWiki */
 
 ( function ( $, mw ) {
 'use strict';
 
 var api = new mw.Api(),
-	page =	mw.config.get( 'wgPageName' ).substring( 32 ),
 	ape = {},
 	months = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro' ],
 	date = new Date(),
 	withScript = '; processo assistido por [[Usuário:Chicocvenancio/arquivarPEs|um script]]';
 
-// TODO: Return a promise
-ape.getWikiText = function ( title, ok, err ) {
-	api.get( {
+ape.getWikiText = async function ( title) {
+	let data = await api.get( {
 		prop: 'revisions',
 		rvprop: 'content',
 		rvlimit: 1,
 		indexpageids: true,
 		titles: title
-	} )
-	.done( function ( data ) {
-		var q = data.query,
-			id = q && q.pageids && q.pageids[ 0 ],
-			pg = id && q.pages && q.pages[ id ],
-			rv = pg && pg.revisions;
-
-		if ( rv && rv[ 0 ] && rv[ 0 ][ '*' ] ) {
-			ok( rv[ 0 ][ '*' ] );
-		}
-	} )
-	.fail( err );
+	} );
+	let q = data.query;
+	let id = q && q.pageids && q.pageids[ 0 ];
+	let pg = id && q.pages && q.pages[ id ];
+	let rv = pg && pg.revisions;
+	if ( rv && rv[ 0 ] && rv[ 0 ][ '*' ] ) {
+		return rv[ 0 ][ '*' ];
+	} else {
+		throw new Error(`Página ${title} não existe.`);
+	}
 };
 
-// TODO: Return a promise
-ape.editPage = function ( title, text, summary, ok, err ) {
-	api.post( {
+ape.editPage = async function ( title, text, summary) {
+	return await api.post( {
 		action: 'edit',
 		title: title,
 		text: text,
 		summary: summary,
 		token : mw.user.tokens.get( 'csrfToken' )
-	} )
-	.done( ok )
-	.fail( err );
+	} );
 };
 
-ape.startArchive = function ( pfdwText ) {
+ape.startArchive = async function ( pfdwText ) {
 	var notFinishedRegex = /\{\{Nomeação não concluída\|(\d*)(|\|prog=.*)\}\}/g,
 		matchRegex = notFinishedRegex.exec( pfdwText );
 
-	if ( !matchRegex) {
-		return ape.useDialog(
-			'Problema',
-			'Predefinição de PE inconclusa não encontrada, por favor verifique a página da PE pela predefinição {{Nomeação não concluída|data (yyyymmdd)}}',
-			'nprompt-dialog'
-		);
-	}
+	 if ( !matchRegex) {
+	 	return ape.useDialog(
+	 		'Problema',
+	 		'Predefinição de PE inconclusa não encontrada, por favor verifique a página da PE pela predefinição {{Nomeação não concluída|data (yyyymmdd)}}',
+	 		'nprompt-dialog'
+	 	);
+	 }
 
 	date.iso = matchRegex[ 1 ];
 	date.setFullYear( date.iso.substring( 0, 4 ), parseInt( date.iso.substring( 4, 6 ) - 1, 10 ), parseInt( date.iso.substring( 6, 8 ), 10 ) );
@@ -71,63 +64,55 @@ ape.startArchive = function ( pfdwText ) {
 			ape.useDialog( 'Em progresso', 'Mudando predefinição em PE', 'nprompt-dialog' );
 			ape.result = 'Arquivo de mantidas/';
 			ape.inconclusive = 1;
-			ape.editPage(
-				'Wikipédia:Páginas para eliminar/' + page,
+			await ape.editPage(
+				mw.config.get( 'wgPageName' ),
 				pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|~~' + '~~' + '~|Inconclusiva}}' ),
-				'Fechando PE' + withScript,
-				function () {
-					ape.removeTemplate();
-				},
-				ape.ajaxErr
-			);
+				'Fechando PE' + withScript);
+			ape.pages.each(async function(i, pageLink) {
+				let page = pageLink.text;
+				await ape.removeTemplate(page);
+			});
 		break;
 
 		case 'Arquivo de eliminadas/':
 			ape.useDialog( 'Em progresso', 'Mudando predefinição em PE', 'nprompt-dialog' );
 			ape.editPage(
-				'Wikipédia:Páginas para eliminar/' + page,
+				mw.config.get( 'wgPageName' ),
 				pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|~~' + '~~' + '~|Eliminada$2}}' ),
-				'Fechando PE' + withScript,
-				function () {
-					ape.deletePage();
-				},
-				ape.ajaxErr
-			);
+				'Fechando PE' + withScript);
+			ape.pages.each(async function(i, pageLink) {
+				let page = pageLink.text;
+			    ape.deletePage(page);
+			    ape.deleteTalkPage(page);
+			});
 		break;
 
 		case 'Arquivo de mantidas/':
 			ape.useDialog( 'Em progresso', 'Mudando predefinição em PE', 'nprompt-dialog' );
-			ape.editPage(
-				'Wikipédia:Páginas para eliminar/' + page,
+			await ape.editPage(
+				mw.config.get( 'wgPageName' ),
 				pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|~~' + '~~' + '~|Mantida}}' ),
-				'Fechando PE' + withScript,
-				function () {
-					ape.removeTemplate();
-				},
-				ape.ajaxErr
-			);
+				'Fechando PE' + withScript);
+			ape.pages.each(async function(i, pageLink) {
+				let page = pageLink.text;
+				await ape.removeTemplate(page);
+			});
 		break;
 
 
 		case 'Redirecionar/':
 			ape.useDialog( 'Em progresso', 'Mudando predefinição em PE', 'nprompt-dialog' );
-			ape.editPage(
-				'Wikipédia:Páginas para eliminar/' + page,
+			await ape.editPage(
+				mw.config.get( 'wgPageName' ),
 				pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|~~' + '~~' + '~|Redirecionar}}' ),
-				'Fechando PE' + withScript,
-				function () {
+				'Fechando PE' + withScript);
+				ape.pages.each(async function(i, pageLink) {
+					let page = pageLink.text;
 					ape.editPage(
 						page,
-						'#REDIRECIONAMENTO [[' + window.prompt( 'Redirecionar para qual página?' ) + ']]',
-						'Redirecionando página' + withScript,
-						function () {
-							ape.archivePage();
-						},
-						ape.ajaxErr
-					);
-				},
-				ape.ajaxErr
-			);
+						'#REDIRECIONAMENTO [[' + window.prompt( `Redirecionar ${page} para qual página?` ) + ']]',
+						'Redirecionando página' + withScript);	
+				});
 		break;
 
 		case 'Prorrogar/': // Prorrogar foi depreciado pela comunidade 
@@ -148,7 +133,10 @@ ape.startArchive = function ( pfdwText ) {
 			//		ape.ajaxErr
 			//	);
 		break;
+
+
 	}
+	await ape.archivePage();
 };
 
 ape.addArchiveLink = function ( element ) {
@@ -157,10 +145,11 @@ ape.addArchiveLink = function ( element ) {
 
 		ape.nicePrompt(
 			'Que tipo de arquivamento deseja fazer?',
-			function ( result ) {
+			async function ( result ) {
 				ape.result = result;
 				ape.useDialog( 'Em progresso', 'Buscando wikitexto da PE', 'nprompt-dialog' );
-				ape.getWikiText( 'Wikipédia:Páginas para eliminar/' + page, ape.startArchive, ape.ajaxErr );
+				let PEtext = await ape.getWikiText( mw.config.get( 'wgPageName' ));
+				ape.startArchive(PEtext);
 			}
 		);
 	} );
@@ -168,17 +157,24 @@ ape.addArchiveLink = function ( element ) {
 	$( $( element ).children()[ 1 ] ).before( $( archivePFD ) ).before( ' | ' ).after( ' ' );
 };
 
-ape.archivePage = function () {
+
+// TODO: make single edit with more than one page
+ape.archivePage = async function () {
 	var date = new Date();
 
 	ape.fullArchivePage = 'Wikipédia:Páginas para eliminar/' + ( ape.result !== 'Redirecionar/' ? ape.result : 'Arquivo de mantidas/' ) + months[ date.getMonth() ] + ' ' + date.getFullYear();
 	ape.useDialog( 'Em progresso', 'Arquivando página', 'nprompt-dialog' );
-
-	api.post( {
+    let appendtext = '';
+    let page;
+	ape.pages.each( function(i, pageLink) {
+		page = pageLink.text;
+		appendtext += `\n* [[${mw.config.get( 'wgPageName' )}| ${page}]] – [[:${page}]]` + ( ape.result === 'Redirecionar/' ? ' - redirecionado' : '' ) + ( ape.result === 'Inconclusivo/' ? ' - inconclusiva' : '' );
+	});
+	return await api.post( {
 		action: 'edit',
 		minor: false,
 		title: ape.fullArchivePage,
-		appendtext: '\n* {{PE/link2|' + page.replace( /_/g, ' ' ) + '}}' + ( ape.result === 'Redirecionar/' ? ' - redirecionado' : '' ) + ( ape.result === 'Inconclusivo/' ? ' - inconclusiva' : '' ),
+		appendtext: appendtext,
 		section: date.getDate(),
 		summary: 'arquivando [[' + page + ']]' + withScript,
 		token: mw.user.tokens.get( 'csrfToken' )
@@ -193,7 +189,7 @@ ape.backlinks = function () {
 		api.get( {
 			action: 'query',
 			list: 'backlinks',
-			bltitle: page,
+			bltitle: ape.page,
 			blnamespace: '0|8|10|12|14|100|102',
 			bllimit: '80',
 			blredirect: '1'
@@ -217,7 +213,7 @@ ape.embedded = function ( result ) {
 	api.get( {
 		action: 'query',
 		list: 'embeddedin',
-		eititle: page,
+		eititle: ape.page,
 		einamespace: '0|8|10|12|14|100|102',
 		eilimit: '80'
 	} ).done( ape.success ).fail( ape.backlinksFail );
@@ -257,7 +253,7 @@ ape.success = function ( result ) {
 		'Sucesso em arquivar! (<a href="' + mw.util.getUrl( ape.fullArchivePage ) + //mensagem de sucesso
 			'#' + ape.day + '_de_' + mw.config.get( 'wgMonthNames' )[ date.getMonth() ] + '">Abrir</a>) <a href="' +
 			mw.util.getUrl( ape.fullArchivePage, { diff: 0 } ) + '">(diff)</a>' + ( ape.result === 'Arquivo de eliminadas/' ? '<br />'	+
-			( ape.numberOfBl === 0 ? 'Não há afluentes para esse artigo' : 'Há ' + ape.numberOfBl + ' <a href="' + mw.util.getUrl( 'Especial:Páginas afluentes/' + page ) +
+			( ape.numberOfBl === 0 ? 'Não há afluentes para esse artigo' : 'Há ' + ape.numberOfBl + ' <a href="' + mw.util.getUrl( 'Especial:Páginas afluentes/' + ape.page ) +
 			'" >afluentes</a> para esse artigo' ) : '' ) + '<br /> Verifique as suas ações.',
 		'nprompt-dialog'
 	);
@@ -275,7 +271,7 @@ ape.talkPageErr = function ( code, result ) {
 	}
 };
 
-ape.deleteTalkPage = function () {
+ape.deleteTalkPage = function (page) {
 	var title,
 		collon = page.indexOf( ':' );
 
@@ -290,43 +286,34 @@ ape.deleteTalkPage = function () {
 	api.post( {
 		action : 'delete',
 		title : title,
-		reason: 'Discussão de página eliminada por [[Wikipédia:Páginas para eliminar/' + page +'|PE]]' + withScript,
+		reason: `Discussão de página eliminada por [[${mw.config.get( 'wgPageName' )}|PE]] ${withScript} `,
 		token : mw.user.tokens.get( 'csrfToken' )
 	} )
-	.done( ape.archivePage )
 	.fail( ape.talkPageErr );
 };
 
-ape.deletePage = function () {
+ape.deletePage = function (page) {
 	ape.useDialog( 'Em progresso', 'Eliminando a página ' + page, 'nprompt-dialog' );
-	api.post( {
+	return api.post( {
 		action : 'delete',
 		title : page,
-		reason: 'Decidido em [[Wikipédia:Páginas para eliminar/' + page +'|PE]]' + withScript,
+		reason: `Decidido em [[${mw.config.get( 'wgPageName' )}|PE]] ${withScript}`,
 		token : mw.user.tokens.get( 'csrfToken' )
-	} )
-	.done( ape.deleteTalkPage )
-	.fail( ape.ajaxErr );
+	} );
 };
 
-ape.removeTemplate = function () {
+ape.removeTemplate = async function (page) {
 	ape.useDialog( 'Em progresso', 'Retirando {{apagar4}} da página ' + page, 'nprompt-dialog' );
-	ape.getWikiText(
+	let wtext = await ape.getWikiText(page);
+	await ape.editPage(
 		page,
-		function ( wtext ) {
-			ape.editPage(
-				page,
-				wtext.replace( /\{\{\s*apagar4[^\}]+\}\}\n/g, '' ),
-				'Retirando {{apagar4}}' + withScript,
-				ape.addOldPfdTemplate,
-				ape.ajaxErr
-			);
-		},
-		ape.ajaxErr
-	);
+		wtext.replace( /\{\{\s*apagar4[^\}]+\}\}\n/g, '' ),
+		'Retirando {{apagar4}}' + withScript);
+	await ape.addOldPfdTemplate(page);
+
 };
 
-ape.addOldPfdTemplate = function () {
+ape.addOldPfdTemplate = async function (page) {
 	var title, textoTopo,
 		collon = page.indexOf( ':' );
 
@@ -343,15 +330,13 @@ ape.addOldPfdTemplate = function () {
 		textoTopo = '{{antigaPE|resultado=manter|';
 	}
 	textoTopo += page + '}}\n\n';
-	api.post( {
+	return await api.post( {
 		action: 'edit',
 		title: title,
 		prependtext : textoTopo,
 		summary: 'Adicionando predefinição de antigaPE' + withScript,
 		token: mw.user.tokens.get( 'csrfToken' )
-	} )
-	.done( ape.archivePage )
-	.fail( ape.ajaxErr );
+	} );
 };
 
 ape.nicePrompt = function ( title, callback ) {
@@ -392,8 +377,9 @@ ape.useDialog = function ( title, message, id ) {
 			}
 		} );
 };
+ape.pages = $( '.PEferramentas' ).children(':first-child');
+$( '.PEferramentas' ).each( function() {ape.addArchiveLink(this);} );
 
-ape.addArchiveLink( $( '.PEferramentas' ).last() );
 }( jQuery, mediaWiki ) );
 
 // [[Categoria:!Código-fonte de scripts|Arquivar PEs]]
