@@ -264,9 +264,7 @@ ape.ajaxErr = function ( code, result ) {
 };
 
 ape.talkPageErr = function ( code, result ) {
-	if ( code === 'missingtitle' ) {
-		ape.archivePage();
-	} else {
+	if ( code !== 'missingtitle' ) {
 		ape.ajaxErr( code, result );
 	}
 };
