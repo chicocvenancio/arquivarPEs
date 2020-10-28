@@ -341,6 +341,7 @@ ape.addOldPfdTemplate = async function (page) {
 
 ape.nicePrompt = function ( title, callback ) {
 	$( '<div id="nprompt-dialog" class="ui-widget">'
+	    + (ape.pages.length > 1 ? '<span style="float: right;width: 50%;"> Temos várias páginas nessa PE, a ação de arquivamento <b>se aplicará a todas</b></span>': '')
 		+ '<input type="radio" name="nprompt-input-radio" value="Inconclusivo/" />Inconclusiva <br />'
 		+ '<input type="radio" name="nprompt-input-radio" value="Redirecionar/" />Redirecionar<br />'
 		+ '<input type="radio" name="nprompt-input-radio" value="Arquivo de mantidas/" />Mantida <br />'
