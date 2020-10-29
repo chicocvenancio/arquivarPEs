@@ -6,6 +6,7 @@
 	'use strict';
 
 	const api = new mw.Api(),
+        fiveTildes = '~~'.concat('~','~~'),
 		ape = {},
 		months = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro' ],
 		date = new Date(),
@@ -66,7 +67,7 @@
 				ape.inconclusive = 1;
 				await ape.editPage(
 					mw.config.get( 'wgPageName' ),
-					pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|~~' + '~~' + '~|Inconclusiva}}' ),
+					pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|' + fiveTildes + '|Inconclusiva}}' ),
 					'Fechando PE' + withScript );
 				ape.pages.each( async function ( i, pageLink ) {
 					const page = pageLink.text;
@@ -78,7 +79,7 @@
 				ape.useDialog( 'Em progresso', 'Mudando predefinição em PE', 'nprompt-dialog' );
 				ape.editPage(
 					mw.config.get( 'wgPageName' ),
-					pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|~~' + '~~' + '~|Eliminada$2}}' ),
+					pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|' + fiveTildes + '|Eliminada$2}}' ),
 					'Fechando PE' + withScript );
 				ape.pages.each( async function ( i, pageLink ) {
 					const page = pageLink.text;
@@ -91,7 +92,7 @@
 				ape.useDialog( 'Em progresso', 'Mudando predefinição em PE', 'nprompt-dialog' );
 				await ape.editPage(
 					mw.config.get( 'wgPageName' ),
-					pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|~~' + '~~' + '~|Mantida}}' ),
+					pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|' + fiveTildes + '|Mantida}}' ),
 					'Fechando PE' + withScript );
 				ape.pages.each( async function ( i, pageLink ) {
 					const page = pageLink.text;
@@ -103,7 +104,7 @@
 				ape.useDialog( 'Em progresso', 'Mudando predefinição em PE', 'nprompt-dialog' );
 				await ape.editPage(
 					mw.config.get( 'wgPageName' ),
-					pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|~~' + '~~' + '~|Redirecionar}}' ),
+					pfdwText.replace( notFinishedRegex, '{{Nomeação concluída|' + fiveTildes + '|Redirecionar}}' ),
 					'Fechando PE' + withScript );
 				ape.pages.each( async function ( i, pageLink ) {
 					const page = pageLink.text;
