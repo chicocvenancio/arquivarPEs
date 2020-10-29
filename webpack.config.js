@@ -1,9 +1,17 @@
-var webpack = require('webpack');
+const webpack = require('webpack');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
 	mode: 'production',
 	entry: './Gadget-arquivarPEs.js',
     target: ["web", "es5"],
+    optimization: {
+        minimizer: [
+            new TerserPlugin({
+                extractComments: false,
+            })
+        ]
+    },
     plugins: [
         new webpack.BannerPlugin( `
 ArquivarPEs - Arquivar Páginas a eliminar
